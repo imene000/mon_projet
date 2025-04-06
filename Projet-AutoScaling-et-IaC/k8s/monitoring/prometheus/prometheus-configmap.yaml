@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s  # Intervalle entre les scrapes des cibles
+
+    scrape_configs:
+      # Scraper Node.js (local) - Backend local
+      - job_name: 'nodejs-local'
+        static_configs:
+          - targets: ['localhost:3000']  # Cible Node.js local
+
+      # Scraper Node.js (via Kubernetes) - Backend dans Kubernetes
+      - job_name: 'nodejs-k8s'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: redis-node.*  # Scraper uniquement les pods Node.js avec l'étiquette "app=redis-node"
+          
+      # Scraper Kubernetes Nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+
+      # Scraper Kubernetes Pods (Redis)
+      - job_name: 'redis-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: redis.*  # Scraper uniquement les pods avec l'étiquette "app=redis"
+
+      # Scraper Kubernetes Services (Redis)
+      - job_name: 'redis-services'
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_app]
+            action: keep
+            regex: redis.*  # Scraper uniquement les services avec l'étiquette "app=redis"
+
+      # Scraper Kubernetes Services (Node.js backend dans Kubernetes)
+      - job_name: 'nodejs-services'
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_label_app]
+            action: keep
+            regex: redis-node.*  # Scraper uniquement les services Node.js avec l'étiquette "app=redis-node"
+
+      # Scraper Redis Exporter
+      - job_name: 'redis-exporter'
+        static_configs:
+          - targets: ['redis-exporter:9121']  # Redis exporter pour collecter les métriques Redis
+
+
